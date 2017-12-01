@@ -51,7 +51,7 @@ public class JUnitLogParserForPhpUnit {
     }
   }
 
-  private SMInputFactory inputFactory() {
+  public static SMInputFactory inputFactory() {
     XMLInputFactory xmlFactory = XMLInputFactory.newInstance();
     xmlFactory.setProperty(XMLInputFactory.IS_COALESCING, Boolean.TRUE);
     xmlFactory.setProperty(XMLInputFactory.IS_NAMESPACE_AWARE, Boolean.FALSE);

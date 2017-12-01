@@ -28,6 +28,9 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
+import javax.xml.stream.XMLStreamException;
+import org.codehaus.staxmate.SMInputFactory;
+import org.codehaus.staxmate.in.SMHierarchicCursor;
 import org.sonar.api.batch.fs.FileSystem;
 import org.sonar.api.batch.fs.InputFile;
 import org.sonar.api.batch.sensor.SensorContext;
@@ -144,20 +147,20 @@ public class CoverageResultImporter extends SingleFileReportImporter {
    * @return the coverage
    */
   private CoverageNode getCoverage(File coverageReportFile) {
-    try (InputStream inputStream = new FileInputStream(coverageReportFile)) {
-      XStream xstream = new XStream();
-      xstream.setClassLoader(getClass().getClassLoader());
-      xstream.aliasSystemAttribute("classType", "class");
-      xstream.processAnnotations(CoverageNode.class);
-      xstream.processAnnotations(ProjectNode.class);
-      xstream.processAnnotations(FileNode.class);
-      xstream.processAnnotations(MetricsNode.class);
-      xstream.processAnnotations(LineNode.class);
-
-      return (CoverageNode) xstream.fromXML(inputStream);
-    } catch (IOException | XStreamException e) {
+    SMInputFactory inputFactory = JUnitLogParserForPhpUnit.inputFactory();
+    try {
+      SMHierarchicCursor rootCursor = inputFactory.rootElementCursor(coverageReportFile);
+      rootCursor.advance();
+      if (!"coverage".equals(rootCursor.getLocalName())) {
+        throw new XMLStreamException("Report should start with <coverage>");
+      }
+      return parseCoverage(rootCursor);
+    } catch (XMLStreamException e) {
       throw new IllegalStateException("Can't read phpUnit report: " + coverageReportFile.getName(), e);
     }
+  }
+
+  private CoverageNode parseCoverage(SMHierarchicCursor cursor) {
   }
 
 }
