@@ -19,18 +19,14 @@
  */
 package org.sonar.plugins.php.phpunit;
 
-import com.thoughtworks.xstream.XStream;
-import com.thoughtworks.xstream.XStreamException;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
 import javax.xml.stream.XMLStreamException;
 import org.codehaus.staxmate.SMInputFactory;
 import org.codehaus.staxmate.in.SMHierarchicCursor;
+import org.codehaus.staxmate.in.SMInputCursor;
 import org.sonar.api.batch.fs.FileSystem;
 import org.sonar.api.batch.fs.InputFile;
 import org.sonar.api.batch.sensor.SensorContext;
@@ -38,12 +34,7 @@ import org.sonar.api.batch.sensor.coverage.NewCoverage;
 import org.sonar.api.measures.Metric;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
-import org.sonar.plugins.php.phpunit.xml.CoverageNode;
-import org.sonar.plugins.php.phpunit.xml.FileNode;
-import org.sonar.plugins.php.phpunit.xml.LineNode;
-import org.sonar.plugins.php.phpunit.xml.MetricsNode;
-import org.sonar.plugins.php.phpunit.xml.PackageNode;
-import org.sonar.plugins.php.phpunit.xml.ProjectNode;
+import org.sonar.plugins.php.phpunit.xml.*;
 
 public class CoverageResultImporter extends SingleFileReportImporter {
 
@@ -154,13 +145,66 @@ public class CoverageResultImporter extends SingleFileReportImporter {
       if (!"coverage".equals(rootCursor.getLocalName())) {
         throw new XMLStreamException("Report should start with <coverage>");
       }
-      return parseCoverage(rootCursor);
+      return parseCoverageNode(rootCursor);
     } catch (XMLStreamException e) {
       throw new IllegalStateException("Can't read phpUnit report: " + coverageReportFile.getName(), e);
     }
   }
 
-  private CoverageNode parseCoverage(SMHierarchicCursor cursor) {
+  private CoverageNode parseCoverageNode(SMHierarchicCursor cursor) throws XMLStreamException {
+    CoverageNode result = new CoverageNode();
+    SMInputCursor childCursor = cursor.childElementCursor("project");
+    while (childCursor.getNext() != null) {
+      result.getProjects().add(parseProjectNode(childCursor));
+    }
+    return result;
+  }
+
+  private ProjectNode parseProjectNode(SMInputCursor cursor) throws XMLStreamException {
+    ProjectNode result = new ProjectNode();
+    result.setName(cursor.getAttrValue("name"));
+    SMInputCursor childCursor = cursor.childElementCursor();
+    while (childCursor.getNext() != null) {
+      if ("package".equals(childCursor.getLocalName())) {
+        result.getPackages().add(parsePackageNode(childCursor));
+      } else if ("file".equals(childCursor.getLocalName())) {
+        result.getFiles().add(parseFileNode(childCursor));
+      }
+    }
+    return result;
+  }
+
+  private PackageNode parsePackageNode(SMInputCursor cursor) throws XMLStreamException {
+    PackageNode result = new PackageNode();
+    result.setName(cursor.getAttrValue("name"));
+    SMInputCursor childCursor = cursor.childElementCursor("file");
+    while (childCursor.getNext() != null) {
+      result.getFiles().add(parseFileNode(childCursor));
+    }
+    return result;
+  }
+
+  private FileNode parseFileNode(SMInputCursor cursor) throws XMLStreamException {
+    FileNode result = new FileNode();
+    result.setName(cursor.getAttrValue("name"));
+    SMInputCursor childCursor = cursor.childElementCursor();
+    while (childCursor.getNext() != null) {
+      if ("line".equals(childCursor.getLocalName())) {
+        result.getLines().add(parseLineNode(childCursor));
+      }
+    }
+    return result;
+  }
+
+  private LineNode parseLineNode(SMInputCursor cursor) throws XMLStreamException {
+    int count = attributeIntValue(cursor, "count");
+    int num = attributeIntValue(cursor, "num");
+    String type = cursor.getAttrValue("type");
+    return new LineNode(count, num, type);
+  }
+
+  private int attributeIntValue(SMInputCursor cursor, String name) throws XMLStreamException {
+    return Integer.parseInt(cursor.getAttrValue(name));
   }
 
 }

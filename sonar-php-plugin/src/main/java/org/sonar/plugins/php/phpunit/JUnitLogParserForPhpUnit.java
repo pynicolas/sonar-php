@@ -53,6 +53,8 @@ public class JUnitLogParserForPhpUnit {
 
   public static SMInputFactory inputFactory() {
     XMLInputFactory xmlFactory = XMLInputFactory.newInstance();
+    xmlFactory.setProperty(XMLInputFactory.IS_REPLACING_ENTITY_REFERENCES, Boolean.TRUE);
+    xmlFactory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, Boolean.FALSE);
     xmlFactory.setProperty(XMLInputFactory.IS_COALESCING, Boolean.TRUE);
     xmlFactory.setProperty(XMLInputFactory.IS_NAMESPACE_AWARE, Boolean.FALSE);
     // just so it won't try to load DTD in if there's DOCTYPE
